@@ -1,0 +1,3 @@
+INSERT INTO "User" (id, email, password, name, role, created_at, updated_at) VALUES 
+('1b374350-8166-4e6d-8c4b-16100bef0863', 'admin@willtechcode.com.br', '$2b$10$ryciXaL5uq.ncxKxQeMSP.o0Yav7Z/8UPlto6qIKISEVX1f52PdGu', 'Administrador', 'ADMIN', '2026-04-21T03:19:17.620Z', '2026-04-21T03:19:17.620Z'),
+('ecfe299e-0887-4d7c-b7ee-6e35d07b1598', 'operador@willtechcode.com.br', '$2b$10$J/xjsm0F3jRvodHT7fP1r.ooakUk8Bje3pA8MKvzYyjdlMdHsPcEC', 'Operador', 'USER', '2026-04-21T03:19:17.620Z', '2026-04-21T03:19:17.620Z')

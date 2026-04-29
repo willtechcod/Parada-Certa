@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Vehicle {
+  id          String    @id @default(uuid())
+  plate       String
+  model       String
+  type        String
+  startTime   DateTime
+  endTime     DateTime?
+  pricePerMin Float?
+  totalPrice Float?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Price {
+  id        String   @id @default(uuid())
+  type      String   @unique
+  pricePerMin Float   @default(0.05)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Promotion {
+  id          String    @id @default(uuid())
+  name        String
+  discount    Float
+  vehicleType String?
+  startDate   DateTime
+  endDate    DateTime
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
