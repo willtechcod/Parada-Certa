@@ -9,73 +9,63 @@ const formatCurrency = (value: number) => {
 
 // Format license plate to Brazilian standard
 const formatPlateDisplay = (plate: string): string => {
-  // Safety check for undefined/null
   if (!plate) return '';
-  
   const cleaned = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  
-  // Old standard: ABC1234 -> ABC-1234
   if (/^[A-Z]{3}\d{4}$/.test(cleaned)) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
   }
-  
-  // Mercosul: ABC1D23 -> ABC-1D23
   if (/^[A-Z]{3}\d{1}[A-Z]{1}\d{2}$/.test(cleaned)) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
   }
-  
-  // Return as-is if doesn't match
   return plate;
 };
 
-interface VehicleCardProps {
+interface Vehicle {
+  id: string;
   plate: string;
   model: string;
   type: "CARRO" | "MOTO";
-  startTime: Date;
-  pricePerMin?: number;
-  onFinish?: () => void;
+  startTime: string;
+  endTime: string | null;
+  pricePerMin: number | null;
+  totalPrice: number | null;
 }
 
-export function VehicleCard({
-  plate,
-  model,
-  type,
-  startTime,
-  pricePerMin = 10.0 / 60, // R$ 10/hora para CARRO
-  onFinish,
-}: VehicleCardProps) {
+interface VehicleCardProps {
+  vehicle: Vehicle;
+  onFinish?: (vehicle: Vehicle) => void;
+}
+
+export function VehicleCard({ vehicle, onFinish }: VehicleCardProps) {
   const now = new Date();
-  const diffMs = now.getTime() - new Date(startTime).getTime();
+  const startTime = new Date(vehicle.startTime);
+  
+  if (isNaN(startTime.getTime())) {
+    console.error("Invalid startTime:", vehicle.startTime);
+    return <div className="bg-background-light border border-border rounded-lg p-4">Erro: Data inválida</div>;
+  }
+  
+  const diffMs = now.getTime() - startTime.getTime();
   const totalMinutes = Math.max(1, Math.ceil(diffMs / 60000));
-  const pricePerHour = pricePerMin * 60; // Preço por hora
+  const pricePerMin = vehicle.pricePerMin || (vehicle.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
+  const pricePerHour = pricePerMin * 60;
 
   let currentPrice: number;
   let timeDisplay: string;
-  let billableMinutes: number;
 
-  // Nova lógica: até 29 min proporcional, 30 min = metade da hora, após 1h = hora + minuto proporcional
   if (totalMinutes <= 29) {
-    // Até 29 min: proporcional ao minuto
     currentPrice = totalMinutes * pricePerMin;
-    billableMinutes = totalMinutes;
     timeDisplay = `${totalMinutes} min`;
   } else if (totalMinutes === 30) {
-    // 30 min: metade do valor da hora
     currentPrice = pricePerHour / 2;
-    billableMinutes = 30;
     timeDisplay = `30 min`;
   } else if (totalMinutes <= 60) {
-    // Entre 31-60 min: valor da hora cheia
     currentPrice = pricePerHour;
-    billableMinutes = 60;
     timeDisplay = `${totalMinutes} min`;
   } else {
-    // Após 1h: valor da hora + minuto proporcional excedido
     const hours = Math.floor(totalMinutes / 60);
     const exceededMinutes = totalMinutes % 60;
     currentPrice = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
-    billableMinutes = totalMinutes;
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
     timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalMinutes} min`;
@@ -86,11 +76,11 @@ export function VehicleCard({
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="text-primary">
-            {type === "CARRO" ? <Car size={32} /> : <Bike size={32} />}
+            {vehicle.type === "CARRO" ? <Car size={32} /> : <Bike size={32} />}
           </div>
           <div>
-            <p className="text-lg font-bold text-white">{formatPlateDisplay(plate)}</p>
-            <p className="text-sm text-gray-400">{model}</p>
+            <p className="text-lg font-bold text-white">{formatPlateDisplay(vehicle.plate)}</p>
+            <p className="text-sm text-gray-400">{vehicle.model}</p>
             <p className="text-xs text-gray-500 mt-1">{timeDisplay}</p>
           </div>
         </div>
@@ -103,7 +93,7 @@ export function VehicleCard({
       </div>
       {onFinish && (
         <button
-          onClick={onFinish}
+          onClick={() => onFinish(vehicle)}
           className="mt-3 w-full py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
         >
           <X size={16} />

@@ -138,7 +138,9 @@ export default function HomePage() {
         return;
       }
       const data = await res.json();
-      setVehicles(data.filter((v: Vehicle) => !v.endTime));
+      const activeVehicles = data.filter((v: Vehicle) => !v.endTime);
+      console.log("Active vehicles:", activeVehicles);
+      setVehicles(activeVehicles);
     } catch {
       setError("Erro ao carregar veículos");
     } finally {
