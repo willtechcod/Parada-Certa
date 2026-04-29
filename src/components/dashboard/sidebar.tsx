@@ -64,14 +64,17 @@ export function Sidebar({ userRole }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden bg-secondary text-white p-2 rounded-md shadow-lg"
-        style={{ zIndex: 60 }}
-      >
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-secondary border-b border-gray-700 px-4 py-3 flex items-center justify-between">
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-white p-1"
+        >
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+        <h1 className="text-lg font-bold text-primary">Parada Certa</h1>
+        <div className="w-8" /> {/* Spacer */}
+      </div>
 
       {/* Mobile Overlay */}
       {mobileOpen && (
@@ -85,15 +88,17 @@ export function Sidebar({ userRole }: SidebarProps) {
       <aside
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300",
-          collapsed ? "w-[60px]" : "w-[250px]",
+          collapsed ? "w-[60px]" : "w-[280px]",
+          "md:top-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
+        style={{ top: "0" }}
       >
         <div className="flex h-full flex-col">
           {/* Logo/Brand */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             {!collapsed && (
-              <Link href="/" className="text-xl font-bold text-primary truncate mr-16 md:mr-12">
+              <Link href="/" className="text-xl font-bold text-primary truncate">
                 Parada Certa
               </Link>
             )}
@@ -160,20 +165,23 @@ export function Sidebar({ userRole }: SidebarProps) {
             </ul>
           </nav>
 
-          {/* Logout Button - Only on mobile */}
-          <div className="border-t border-gray-700 p-4 md:hidden">
+          {/* Logout Button */}
+          <div className="border-t border-gray-700 p-4">
             <Link href="/api/auth/logout">
               <Button
                 variant="ghost"
                 className="w-full text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors justify-start"
               >
                 <LogOut size={20} className="flex-shrink-0" />
-                <span className="ml-2 truncate">Sair</span>
+                {!collapsed && <span className="ml-2 truncate">Sair</span>}
               </Button>
             </Link>
           </div>
         </div>
       </aside>
+
+      {/* Mobile Bottom Spacing */}
+      <div className="md:hidden h-16" />
     </>
   );
 }

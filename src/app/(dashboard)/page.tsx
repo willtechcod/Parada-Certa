@@ -198,7 +198,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 pb-20 md:pb-6">
       <StatsCards
         totalVehicles={vehicles.length}
         totalCars={vehicles.filter((v) => v.type === "CARRO").length}
@@ -207,7 +207,7 @@ export default function HomePage() {
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white ml-8 md:ml-0">Veículos Estacionados</h2>
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Veículos Estacionados</h2>
         <Button onClick={() => setModalOpen(true)} className="w-full sm:w-auto">
           <Plus size={20} className="mr-2" />
           Adicionar Veículo

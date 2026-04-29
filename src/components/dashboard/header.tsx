@@ -29,7 +29,7 @@ export function Header({ userRole, userName }: HeaderProps) {
         <h1 className="text-lg sm:text-xl font-bold text-white truncate">{getPageTitle()}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         {userName && (
           <span className="text-sm text-gray-300 hidden sm:inline-block truncate max-w-[150px]">
             {userName}
@@ -54,7 +54,7 @@ export function Header({ userRole, userName }: HeaderProps) {
           </Link>
         )}
 
-        {/* Logout only on larger screens - mobile uses sidebar */}
+        {/* Logout - only visible on desktop */}
         <Link href="/api/auth/logout" className="hidden md:block">
           <Button variant="danger" size="sm">
             <LogOut size={16} className="mr-2" />
