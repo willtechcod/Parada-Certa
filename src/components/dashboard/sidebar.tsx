@@ -29,11 +29,10 @@ export function Sidebar({ userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   
-  // Get current tab from URL (for admin submenu highlighting)
-  const currentTab = searchParams?.get("tab") || "";
-  
-  // Check if admin section is active
-  const isAdminActive = pathname === "/admin" || pathname.startsWith("/admin?");
+  // Get current tab from URL - force re-render on change
+  const currentTab = React.useMemo(() => {
+    return searchParams?.get("tab") || "metrics";
+  }, [searchParams]);
 
   const menuItems = [
     {
@@ -59,6 +58,9 @@ export function Sidebar({ userRole }: SidebarProps) {
   const filteredItems = menuItems.filter(
     (item) => !userRole || item.roles.includes(userRole)
   );
+
+  // Check if admin section is active
+  const isAdminSection = pathname === "/admin";
 
   return (
     <>
@@ -117,7 +119,7 @@ export function Sidebar({ userRole }: SidebarProps) {
                       "flex items-center gap-3 rounded-lg px-3 py-3 transition-colors",
                       // Highlight parent items
                       (pathname === item.href && !item.children) ||
-                      (item.children && isAdminActive)
+                      (item.children && isAdminSection)
                         ? "bg-primary text-secondary font-medium"
                         : "text-gray-300 hover:bg-gray-700 hover:text-white",
                       collapsed && "justify-center px-2"
@@ -127,27 +129,30 @@ export function Sidebar({ userRole }: SidebarProps) {
                     {!collapsed && <span className="truncate">{item.title}</span>}
                   </Link>
                   {/* Admin Submenu */}
-                  {!collapsed && item.children && isAdminActive && (
+                  {!collapsed && item.children && isAdminSection && (
                     <ul className="ml-6 mt-2 space-y-1">
-                      {item.children.map((child) => (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            onClick={() => {
-                              setMobileOpen(false);
-                            }}
-                            className={cn(
-                              "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                              currentTab === child.tab || (!currentTab && child.tab === "metrics" && pathname === "/admin")
-                                ? "bg-primary/20 text-primary font-medium"
-                                : "text-gray-400 hover:bg-gray-700 hover:text-white"
-                            )}
-                          >
-                            <child.icon size={16} className="flex-shrink-0" />
-                            <span className="truncate">{child.title}</span>
-                          </Link>
-                        </li>
-                      ))}
+                      {item.children.map((child) => {
+                        const isActive = currentTab === child.tab;
+                        return (
+                          <li key={child.href}>
+                            <Link
+                              href={child.href}
+                              onClick={() => {
+                                setMobileOpen(false);
+                              }}
+                              className={cn(
+                                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                                isActive
+                                  ? "bg-primary/20 text-primary font-medium"
+                                  : "text-gray-400 hover:bg-gray-700 hover:text-white"
+                              )}
+                            >
+                              <child.icon size={16} className="flex-shrink-0" />
+                              <span className="truncate">{child.title}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </li>
