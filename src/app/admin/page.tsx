@@ -1,3 +1,4 @@
+// Simplified admin page for mobile - only essential info + generate report
 "use client";
 
 import { useState, useEffect } from "react";
@@ -98,6 +99,7 @@ export default function AdminPage() {
   
   // Get active tab directly from URL - reacts to changes
   const activeTab = searchParams.get("tab") || "metrics";
+  
   const [priceModal, setPriceModal] = useState(false);
   const [promoModal, setPromoModal] = useState(false);
   const [userModal, setUserModal] = useState(false);
@@ -119,6 +121,14 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editUserModal, setEditUserModal] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Alert modal states
+  const [alertModal, setAlertModal] = useState(false);
+  const [alertType, setAlertType] = useState<"success" | "error" | "confirm" | "warning">("success");
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertCallback, setAlertCallback] = useState<(() => void) | null>(null);
+  const [alertLoading, setAlertLoading] = useState(false);
 
   // Get current user ID
   useEffect(() => {
@@ -136,36 +146,39 @@ export default function AdminPage() {
     getCurrentUser();
   }, []);
 
-  // Alert modal states
-  const [alertModal, setAlertModal] = useState(false);
-  const [alertType, setAlertType] = useState<"success" | "error" | "confirm" | "warning">("success");
-  const [alertTitle, setAlertTitle] = useState("");
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertCallback, setAlertCallback] = useState<(() => void) | null>(null);
-  const [alertLoading, setAlertLoading] = useState(false);
-
+  // Fetch data when tab or period changes
   useEffect(() => {
     fetchData();
   }, [period, activeTab]);
 
   const fetchData = async () => {
     try {
-      const [metricsRes, pricesRes, promosRes, usersRes] = await Promise.all([
-        fetch(`/api/admin/metrics?period=${period}`),
-        fetch("/api/admin/prices"),
-        fetch("/api/admin/promotions"),
-        fetch("/api/admin/users"),
-      ]);
-
-      const metricsData = await metricsRes.json();
-      const pricesData = await pricesRes.json();
-      const promosData = await promosRes.json();
-      const usersData = await usersRes.json();
-
-      setMetrics(metricsData);
-      setPrices(pricesData);
-      setPromotions(promosData);
-      setUsers(usersData);
+      setLoading(true);
+      
+      // Fetch based on active tab
+      if (activeTab === "metrics") {
+        const res = await fetch(`/api/admin/metrics?period=${period}`);
+        const data = await res.json();
+        setMetrics(data);
+      }
+      
+      if (activeTab === "prices" || !activeTab) {
+        const res = await fetch("/api/admin/prices");
+        const data = await res.json();
+        setPrices(data);
+      }
+      
+      if (activeTab === "promotions") {
+        const res = await fetch("/api/admin/promotions");
+        const data = await res.json();
+        setPromotions(data);
+      }
+      
+      if (activeTab === "users") {
+        const res = await fetch("/api/admin/users");
+        const data = await res.json();
+        setUsers(data);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -200,111 +213,75 @@ export default function AdminPage() {
         setPriceModal(false);
         setEditingPrice(null);
         setPriceInputValue("");
-        showAlert("success", "Sucesso!", "Preço atualizado com sucesso.");
-      } else {
-        const error = await res.json();
-        showAlert("error", "Erro!", error.error || "Erro ao atualizar preço.");
+        showAlert("success", "Sucesso", "Preço atualizado com sucesso!");
       }
-    } catch {
-      showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
+    } catch (error) {
+      showAlert("error", "Erro", "Falha ao salvar preço");
     }
   };
 
-  const handleSavePromotion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/admin/promotions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...promoForm,
-          discount: Number(promoForm.discount),
-        }),
-      });
+  const handleDeletePromotion = async (id: string) => {
+    showAlert(
+      "confirm",
+      "Confirmar exclusão",
+      "Tem certeza que deseja excluir esta promoção?",
+      async () => {
+        setAlertLoading(true);
+        try {
+          const res = await fetch(`/api/admin/promotions/${id}`, {
+            method: "DELETE",
+          });
 
-      if (res.ok) {
-        fetchData();
-        setPromoModal(false);
-        setPromoForm({
-          name: "",
-          discount: 0,
-          vehicleType: "TODOS",
-          startDate: "",
-          endDate: "",
-        });
-        showAlert("success", "Sucesso!", "Promoção criada com sucesso.");
-      } else {
-        const error = await res.json();
-        showAlert("error", "Erro!", error.error || "Erro ao criar promoção.");
+          if (res.ok) {
+            fetchData();
+            showAlert("success", "Sucesso", "Promoção excluída com sucesso!");
+          }
+        } catch (error) {
+          showAlert("error", "Erro", "Falha ao excluir promoção");
+        } finally {
+          setAlertLoading(false);
+        }
       }
-    } catch {
-      showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
-    }
+    );
   };
 
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveUser = async () => {
     try {
+      const validatedData = editUserSchema.parse(userForm);
+      
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userForm),
+        body: JSON.stringify(validatedData),
       });
 
       if (res.ok) {
         fetchData();
         setUserModal(false);
         setUserForm({ email: "", password: "", name: "", role: "USER" });
-        showAlert("success", "Sucesso!", "Usuário criado com sucesso.");
+        showAlert("success", "Sucesso", "Usuário criado com sucesso!");
       } else {
-        const error = await res.json();
-        showAlert("error", "Erro!", error.error || "Erro ao criar usuário.");
+        const data = await res.json();
+        showAlert("error", "Erro", data.error || "Falha ao criar usuário");
       }
-    } catch {
-      showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.issues?.[0];
+        showAlert("error", "Erro", firstError?.message || "Dados inválidos");
+      }
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    showAlert(
-      "confirm",
-      "Confirmar Exclusão",
-      "Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.",
-      async () => {
-        try {
-          const res = await fetch(`/api/admin/users/${id}`, {
-            method: "DELETE",
-          });
-
-          if (res.ok) {
-            fetchData();
-            showAlert("success", "Sucesso!", "Usuário excluído com sucesso.");
-          } else {
-            const error = await res.json();
-            showAlert("error", "Erro!", error.error || "Erro ao excluir usuário.");
-          }
-        } catch {
-          showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
-        }
-      }
-    );
-  };
-
-  const handleEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditUser = async () => {
     if (!editingUser) return;
 
-    // Prevent self-editing
-    if (editingUser.id === currentUserId) {
-      showAlert("error", "Erro!", "Você não pode editar seu próprio usuário.");
-      return;
-    }
-
     try {
+      const validatedData = editUserSchema.parse(userForm);
+      
       const res = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userForm),
+        body: JSON.stringify(validatedData),
       });
 
       if (res.ok) {
@@ -312,54 +289,70 @@ export default function AdminPage() {
         setEditUserModal(false);
         setEditingUser(null);
         setUserForm({ email: "", password: "", name: "", role: "USER" });
-        showAlert("success", "Sucesso!", "Usuário atualizado com sucesso.");
+        showAlert("success", "Sucesso", "Usuário atualizado com sucesso!");
       } else {
-        const error = await res.json();
-        showAlert("error", "Erro!", error.error || "Erro ao atualizar usuário.");
+        const data = await res.json();
+        showAlert("error", "Erro", data.error || "Falha ao atualizar usuário");
       }
-    } catch {
-      showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.issues?.[0];
+        showAlert("error", "Erro", firstError?.message || "Dados inválidos");
+      }
     }
   };
 
-  const handleTogglePromotion = async (id: string, active: boolean) => {
-    try {
-      const res = await fetch("/api/admin/promotions", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, active }),
-      });
-
-      if (res.ok) {
-        fetchData();
-        showAlert(
-          "success",
-          "Sucesso!",
-          `Promoção ${active ? "ativada" : "desativada"} com sucesso.`
-        );
-      } else {
-        const error = await res.json();
-        showAlert("error", "Erro!", error.error || "Erro ao alterar promoção.");
-      }
-    } catch {
-      showAlert("error", "Erro!", "Erro ao conectar com o servidor.");
+  const handleDeleteUser = async (id: string) => {
+    if (id === currentUserId) {
+      showAlert("error", "Erro", "Você não pode excluir sua própria conta");
+      return;
     }
-  };
 
-  const downloadReport = async (format: string) => {
-    window.open(`/api/reports?period=${period}&format=${format}`, "_blank");
-  };
+    showAlert(
+      "confirm",
+      "Confirmar exclusão",
+      "Tem certeza que deseja excluir este usuário?",
+      async () => {
+        setAlertLoading(true);
+        try {
+          const res = await fetch(`/api/admin/users/${id}`, {
+            method: "DELETE",
+          });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Carregando...</div>
-      </div>
+          if (res.ok) {
+            fetchData();
+            showAlert("success", "Sucesso", "Usuário excluído com sucesso!");
+          }
+        } catch (error) {
+          showAlert("error", "Erro", "Falha ao excluir usuário");
+        } finally {
+          setAlertLoading(false);
+        }
+      }
     );
-  }
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      showAlert("success", "Relatório", "Gerando relatório...");
+      const res = await fetch(`/api/reports?period=${period}&format=xlsx`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `relatorio-${period}.xlsx`;
+        a.click();
+        showAlert("success", "Sucesso", "Relatório baixado com sucesso!");
+      }
+    } catch (error) {
+      showAlert("error", "Erro", "Falha ao gerar relatório");
+    }
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* Stats Cards - Always visible */}
       <StatsCards
         totalVehicles={metrics?.totalVehicles || 0}
         totalCars={metrics?.totalCars || 0}
@@ -367,50 +360,12 @@ export default function AdminPage() {
         revenue={metrics?.totalRevenue || 0}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-white">
-            {activeTab === "metrics" && "Métricas"}
-            {activeTab === "prices" && "Preços"}
-            {activeTab === "promotions" && "Promoções"}
-            {activeTab === "users" && "Usuários"}
-          </h2>
-          <p className="text-gray-400 mt-1 text-sm md:text-base">
-            {activeTab === "metrics" && "Visão geral do estacionamento"}
-            {activeTab === "prices" && "Gerenciar preços por tipo de veículo"}
-            {activeTab === "promotions" && "Gerenciar promoções ativas"}
-            {activeTab === "users" && "Gerenciar usuários do sistema"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {activeTab === "metrics" && (
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="px-3 py-2 bg-background-light border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-            >
-              <option value="month">Este mês</option>
-              <option value="6months">Últimos 6 meses</option>
-              <option value="year">Este ano</option>
-            </select>
-          )}
-          {activeTab === "promotions" && (
-            <Button onClick={() => setPromoModal(true)} className="w-full sm:w-auto">
-              + Nova Promoção
-            </Button>
-          )}
-          {activeTab === "users" && (
-            <Button onClick={() => setUserModal(true)} className="w-full sm:w-auto">
-              + Novo Usuário
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* Tab Navigation - Scrollable on mobile */}
       <div className="flex gap-2 border-b border-border overflow-x-auto pb-0 scrollbar-hide">
         <button
-          onClick={() => setActiveTab("metrics")}
+          onClick={() => {
+            router.push("/admin?tab=metrics");
+          }}
           className={`px-3 py-2 transition-colors whitespace-nowrap ${
             activeTab === "metrics"
               ? "border-b-2 border-primary text-primary"
@@ -420,7 +375,9 @@ export default function AdminPage() {
           Métricas
         </button>
         <button
-          onClick={() => setActiveTab("prices")}
+          onClick={() => {
+            router.push("/admin?tab=prices");
+          }}
           className={`px-3 py-2 transition-colors whitespace-nowrap ${
             activeTab === "prices"
               ? "border-b-2 border-primary text-primary"
@@ -430,7 +387,9 @@ export default function AdminPage() {
           Preços
         </button>
         <button
-          onClick={() => setActiveTab("promotions")}
+          onClick={() => {
+            router.push("/admin?tab=promotions");
+          }}
           className={`px-3 py-2 transition-colors whitespace-nowrap ${
             activeTab === "promotions"
               ? "border-b-2 border-primary text-primary"
@@ -440,7 +399,9 @@ export default function AdminPage() {
           Promoções
         </button>
         <button
-          onClick={() => setActiveTab("users")}
+          onClick={() => {
+            router.push("/admin?tab=users");
+          }}
           className={`px-3 py-2 transition-colors whitespace-nowrap ${
             activeTab === "users"
               ? "border-b-2 border-primary text-primary"
@@ -451,10 +412,30 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* Metrics Tab */}
+      {/* Metrics Tab - Simplified for mobile */}
       {activeTab === "metrics" && metrics && (
-        <>
-          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+        <div className="space-y-4">
+          {/* Period Selector */}
+          <div className="flex items-center gap-2">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="bg-background-light border border-border text-white rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="1month">1 mês</option>
+              <option value="3months">3 meses</option>
+              <option value="6months">6 meses</option>
+              <option value="1year">1 ano</option>
+            </select>
+            
+            <Button onClick={handleGenerateReport} size="sm" className="ml-auto">
+              <Download size={16} className="mr-2" />
+              <span className="hidden sm:inline">Gerar Relatório</span>
+            </Button>
+          </div>
+
+          {/* Charts - Hidden on mobile, visible on desktop */}
+          <div className="hidden md:grid gap-4 md:grid-cols-2">
             <Card className="bg-background-light border-border">
               <CardHeader>
                 <CardTitle className="text-white text-lg md:text-xl">
@@ -500,31 +481,25 @@ export default function AdminPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        {
-                          name: "Carros",
-                          value: metrics.totalCars,
-                        },
-                        {
-                          name: "Motos",
-                          value: metrics.totalMotos,
-                        },
+                        { name: "Carros", value: metrics.totalCars },
+                        { name: "Motos", value: metrics.totalMotos },
                       ]}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => `${entry.name}: ${entry.value}`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {COLORS.map((color, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={color}
-                        />
+                      {[
+                        { name: "Carros", value: metrics.totalCars },
+                        { name: "Motos", value: metrics.totalMotos },
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
+                      formatter={(value: number) => `R$ ${value.toFixed(2)}`}
                       contentStyle={{
                         backgroundColor: "#1B2818",
                         border: "1px solid #4CF412",
@@ -537,293 +512,208 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          <Card className="bg-background-light border-border">
-            <CardHeader>
-              <CardTitle className="text-white text-lg md:text-xl">
-                Faturamento Mensal
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={metrics.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#3C5934" />
-                  <XAxis dataKey="month" stroke="#CCCCCC" />
-                  <YAxis stroke="#CCCCCC" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1B2818",
-                      border: "1px solid #4CF412",
-                    }}
-                    formatter={(value: number) =>
-                      `R$ ${value.toFixed(2)}`
-                    }
-                  />
-                  <Legend />
-                  <Bar
-                    dataKey="revenue"
-                    fill="#66FF31"
-                    name="Faturamento"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-background-light border-border">
-            <CardHeader>
-              <CardTitle className="text-white">
-                Faturamento Mensal
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={metrics.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#3C5934" />
-                  <XAxis dataKey="month" stroke="#CCCCCC" />
-                  <YAxis stroke="#CCCCCC" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1B2818",
-                      border: "1px solid #4CF412",
-                    }}
-                    formatter={(value: number) =>
-                      `R$ ${value.toFixed(2)}`
-                    }
-                  />
-                  <Bar
-                    dataKey="revenue"
-                    fill="#66FF31"
-                    name="Faturamento"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-background-light border-border">
-            <CardHeader>
-              <CardTitle className="text-white text-lg md:text-xl">
-                Dados Mensais
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto -mx-4 px-4">
-                <table className="w-full min-w-[500px] text-left">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="p-2 md:p-3 text-gray-300 text-sm md:text-base">Mês</th>
-                      <th className="p-2 md:p-3 text-gray-300 text-sm md:text-base">Carros</th>
-                      <th className="p-2 md:p-3 text-gray-300 text-sm md:text-base">Motos</th>
-                      <th className="p-2 md:p-3 text-gray-300 text-sm md:text-base">Faturamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.monthlyData.map((item, i) => (
-                      <tr
-                        key={i}
-                        className="border-b border-border/50 hover:bg-background/50"
-                      >
-                        <td className="p-3 text-white">
-                          {item.month}
-                        </td>
-                        <td className="p-3 text-gray-300">
-                          {item.cars}
-                        </td>
-                        <td className="p-3 text-gray-300">
-                          {item.motorcycles}
-                        </td>
-                        <td className="p-3 text-primary">
-                          R$ {item.revenue.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
+          {/* Mobile: Simple summary instead of charts */}
+          <div className="md:hidden space-y-4">
+            <Card className="bg-background-light border-border">
+              <CardHeader>
+                <CardTitle className="text-white text-lg">
+                  Resumo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total de Veículos:</span>
+                  <span className="text-white font-bold">{metrics.totalVehicles}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Carros:</span>
+                  <span className="text-white font-bold">{metrics.totalCars}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Motos:</span>
+                  <span className="text-white font-bold">{metrics.totalMotos}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Receita Total:</span>
+                  <span className="text-primary font-bold">{formatBRL(metrics.totalRevenue)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
 
       {/* Prices Tab */}
       {activeTab === "prices" && (
-        <Card className="bg-background-light border-border">
-          <CardHeader>
-            <CardTitle className="text-white">
-              Preços por Minuto
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 md:space-y-4">
-              {prices.map((price) => (
-                <div
-                  key={price.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 bg-background rounded-lg gap-3 sm:gap-0"
-                >
-                  <div>
-                    <p className="text-white font-semibold text-sm md:text-base">
-                      {price.type === "CARRO" ? "Carro" : "Moto"}
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400">
-                      R$ {(price.pricePerMin * 60).toFixed(2)} por hora
-                    </p>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+            {prices.map((price) => (
+              <Card key={price.id} className="bg-background-light border-border">
+                <CardHeader>
+                  <CardTitle className="text-white text-lg">
+                    {price.type === "CARRO" ? "Carro" : "Moto"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Preço por minuto:</span>
+                      <span className="text-white">{formatBRL(price.pricePerMin)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Preço por hora:</span>
+                      <span className="text-primary font-bold">
+                        {formatBRL(price.pricePerMin * 60)}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setEditingPrice(price);
+                        setPriceInputValue((price.pricePerMin * 60).toFixed(2));
+                        setPriceModal(true);
+                      }}
+                      variant="secondary"
+                      className="w-full mt-2"
+                    >
+                      <Pencil size={16} className="mr-2" />
+                      Editar
+                    </Button>
                   </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setEditingPrice(price);
-                      setPriceInputValue(formatBRL(price.pricePerMin * 60));
-                      setPriceModal(true);
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Editar
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Promotions Tab */}
       {activeTab === "promotions" && (
-        <Card className="bg-background-light border-border">
-          <CardHeader>
-            <CardTitle className="text-white">
-              Promoções Ativas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 md:space-y-4">
-              {promotions.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">
-                  Nenhuma promoção cadastrada
-                </p>
-              ) : (
-                promotions.map((promo) => (
-                  <div
-                    key={promo.id}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 bg-background rounded-lg gap-3 sm:gap-0 ${
-                      promo.active ? "" : "opacity-50"
-                    }`}
-                  >
-                    <div>
-                      <p className="text-white font-semibold text-sm md:text-base">
-                        {promo.name}
-                      </p>
-                      <p className="text-xs md:text-sm text-gray-400">
-                        {promo.discount}% desconto
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(promo.startDate).toLocaleDateString("pt-BR")} -{" "}
-                        {new Date(promo.endDate).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={promo.active}
-                        onChange={(e) =>
-                          handleTogglePromotion(promo.id, e.target.checked)
-                        }
-                        className="w-4 h-4 md:w-5 md:h-5"
-                      />
-                      <span className="text-gray-300 text-sm md:text-base">
-                        {promo.active ? "Ativa" : "Inativa"}
-                      </span>
-                    </label>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white">Promoções Ativas</h3>
+            <Button onClick={() => setPromoModal(true)}>
+              + Nova Promoção
+            </Button>
+          </div>
 
-      {/* Users Tab - Only for ADMIN */}
-      {activeTab === "users" && (
-        <Card className="bg-background-light border-border">
-          <CardHeader>
-            <CardTitle className="text-white text-lg md:text-xl">
-              Usuários do Sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 md:space-y-4">
-              {users.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 bg-background rounded-lg gap-3 sm:gap-0"
-                >
-                  <div>
-                    <p className="text-white font-semibold text-sm md:text-base">
-                      {user.name || user.email}
-                    </p>
-                    <p className="text-xs md:text-sm text-gray-400">
-                      {user.email}
-                    </p>
-                    <span
-                      className={`inline-block text-xs px-2 py-1 rounded mt-1 ${
-                        user.role === "ADMIN"
-                          ? "bg-primary/20 text-primary"
-                          : "bg-gray-500/20 text-gray-300"
-                      }`}
-                    >
-                      {user.role}
-                    </span>
-                  </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    {currentUserId !== user.id ? (
-                      <>
+          {promotions.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">Nenhuma promoção cadastrada</p>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {promotions.map((promo) => (
+                <Card key={promo.id} className="bg-background-light border-border">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">{promo.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Desconto:</span>
+                        <span className="text-primary font-bold">{promo.discount}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Tipo:</span>
+                        <span className="text-white">
+                          {promo.vehicleType || "Todos"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Status:</span>
+                        <span className={promo.active ? "text-green-400" : "text-red-400"}>
+                          {promo.active ? "Ativa" : "Inativa"}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 mt-2">
                         <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setEditingUser(user);
-                            setUserForm({
-                              email: user.email,
-                              password: "",
-                              name: user.name || "",
-                              role: user.role,
-                            });
-                            setEditUserModal(true);
-                          }}
-                          className="flex-1 sm:flex-none"
-                        >
-                          Editar
-                        </Button>
-                        <Button
+                          onClick={() => handleDeletePromotion(promo.id)}
                           variant="danger"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="flex-1 sm:flex-none"
+                          size="sm"
+                          className="flex-1"
                         >
+                          <Trash2 size={16} className="mr-1" />
                           Excluir
                         </Button>
-                      </>
-                    ) : (
-                      <span className="text-gray-500 text-sm italic py-2">
-                        Você não pode editar seu próprio usuário
-                      </span>
-                    )}
-                  </div>
-                </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
 
-      {/* Reports Section */}
-      <div className="flex gap-4">
-        <Button onClick={() => downloadReport("xlsx")}>
-          <Download size={20} className="mr-2" />
-          Exportar XLSX
-        </Button>
-        <Button onClick={() => downloadReport("json")} variant="secondary">
-          <Download size={20} className="mr-2" />
-          Exportar JSON
-        </Button>
-      </div>
+      {/* Users Tab */}
+      {activeTab === "users" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-white">Usuários do Sistema</h3>
+            <Button onClick={() => setUserModal(true)}>
+              <UserPlus size={16} className="mr-2" />
+              Novo Usuário
+            </Button>
+          </div>
+
+          {users.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">Nenhum usuário cadastrado</p>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {users.map((user) => (
+                <Card key={user.id} className="bg-background-light border-border">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">
+                      {user.name || user.email}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Email:</span>
+                        <span className="text-white">{user.email}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Role:</span>
+                        <span className="text-primary font-bold">{user.role}</span>
+                      </div>
+                      {user.id !== currentUserId && (
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            onClick={() => {
+                              setEditingUser(user);
+                              setUserForm({
+                                email: user.email,
+                                password: "",
+                                name: user.name || "",
+                                role: user.role,
+                              });
+                              setEditUserModal(true);
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <Pencil size={16} className="mr-1" />
+                            Editar
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteUser(user.id)}
+                            variant="danger"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <Trash2 size={16} className="mr-1" />
+                            Excluir
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Price Modal */}
       <Modal
@@ -833,95 +723,121 @@ export default function AdminPage() {
           setEditingPrice(null);
           setPriceInputValue("");
         }}
-        title="Editar Preço"
+        title={editingPrice ? "Editar Preço" : "Novo Preço"}
       >
-        {editingPrice && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Tipo de Veículo
+            </label>
+            <select
+              value={editingPrice?.type || "CARRO"}
+              onChange={(e) =>
+                setEditingPrice(
+                  editingPrice
+                    ? { ...editingPrice, type: e.target.value }
+                    : null
+                )
+              }
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
+              disabled={!editingPrice}
+            >
+              <option value="CARRO">Carro</option>
+              <option value="MOTO">Moto</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Preço por Hora (R$)
+            </label>
+            <input
+              type="text"
+              value={priceInputValue}
+              onChange={(e) => setPriceInputValue(e.target.value)}
+              placeholder="10.00"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
+            />
+          </div>
+
+          <Button
+            onClick={() => {
               const pricePerHour = parseBRL(priceInputValue);
-              const pricePerMin = pricePerHour / 60;
-              handleSavePrice(editingPrice.type, pricePerMin);
+              handleSavePrice(
+                editingPrice?.type || "CARRO",
+                pricePerHour / 60
+              );
             }}
-            className="space-y-4"
+            className="w-full"
           >
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Tipo de veículo
-              </label>
-              <div className="px-4 py-2 bg-background border border-border rounded-lg text-white">
-                {editingPrice.type === "CARRO" ? "🚗 Carro" : "🏍️ Moto"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Preço por hora (R$)
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={priceInputValue}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^\d]/g, "");
-                  if (raw === "") {
-                    setPriceInputValue("");
-                    return;
-                  }
-                  const number = Number(raw) / 100;
-                  setPriceInputValue(formatBRL(number));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === " " || e.key === "Enter") {
-                    e.preventDefault();
-                  }
-                }}
-                placeholder="R$ 0,00"
-                required
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Digite apenas números. Ex: 1000 = R$ 10,00
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setPriceModal(false);
-                  setEditingPrice(null);
-                  setPriceInputValue("");
-                }}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1">
-                Salvar
-              </Button>
-            </div>
-          </form>
-        )}
+            Salvar
+          </Button>
+        </div>
       </Modal>
 
       {/* Promotion Modal */}
       <Modal
         isOpen={promoModal}
-        onClose={() => setPromoModal(false)}
+        onClose={() => {
+          setPromoModal(false);
+          setPromoForm({
+            name: "",
+            discount: 0,
+            vehicleType: "TODOS",
+            startDate: "",
+            endDate: "",
+          });
+        }}
         title="Nova Promoção"
       >
-        <form onSubmit={handleSavePromotion} className="space-y-4">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const validatedData = promotionSchema.parse(promoForm);
+              const res = await fetch("/api/admin/promotions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(validatedData),
+              });
+
+              if (res.ok) {
+                fetchData();
+                setPromoModal(false);
+                setPromoForm({
+                  name: "",
+                  discount: 0,
+                  vehicleType: "TODOS",
+                  startDate: "",
+                  endDate: "",
+                });
+                showAlert("success", "Sucesso", "Promoção criada com sucesso!");
+              } else {
+                const data = await res.json();
+                showAlert("error", "Erro", data.error || "Falha ao criar promoção");
+              }
+            } catch (error) {
+              if (error instanceof z.ZodError) {
+                const firstError = error.issues?.[0];
+                showAlert("error", "Erro", firstError?.message || "Dados inválidos");
+              }
+            }
+          }}
+          className="space-y-4"
+        >
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Nome da promoção
+              Nome
             </label>
             <input
               type="text"
               value={promoForm.name}
-              onChange={(e) => setPromoForm({ ...promoForm, name: e.target.value })}
-              placeholder="Ex: Promoção Feriadão"
+              onChange={(e) =>
+                setPromoForm({ ...promoForm, name: e.target.value })
+              }
+              placeholder="Promoção de Fim de Ano"
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
             />
           </div>
 
@@ -933,27 +849,31 @@ export default function AdminPage() {
               type="number"
               value={promoForm.discount}
               onChange={(e) =>
-                setPromoForm({ ...promoForm, discount: Number(e.target.value) })
+                setPromoForm({
+                  ...promoForm,
+                  discount: parseFloat(e.target.value) || 0,
+                })
               }
+              placeholder="10"
               min="0"
               max="100"
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Tipo de veículo
+              Tipo de Veículo
             </label>
             <select
               value={promoForm.vehicleType}
               onChange={(e) =>
                 setPromoForm({ ...promoForm, vehicleType: e.target.value })
               }
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
             >
-              <option value="TODOS">Todos</option>
+              <option value="">Todos</option>
               <option value="CARRO">Carro</option>
               <option value="MOTO">Moto</option>
             </select>
@@ -961,7 +881,7 @@ export default function AdminPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Data início
+              Data Inicial
             </label>
             <input
               type="date"
@@ -970,13 +890,13 @@ export default function AdminPage() {
                 setPromoForm({ ...promoForm, startDate: e.target.value })
               }
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Data fim
+              Data Final
             </label>
             <input
               type="date"
@@ -985,27 +905,17 @@ export default function AdminPage() {
                 setPromoForm({ ...promoForm, endDate: e.target.value })
               }
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
             />
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setPromoModal(false)}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" className="flex-1">
-              Salvar
-            </Button>
-          </div>
+          <Button type="submit" className="w-full">
+            Criar Promoção
+          </Button>
         </form>
       </Modal>
 
-      {/* User Modal */}
+      {/* User Modal (Create) */}
       <Modal
         isOpen={userModal}
         onClose={() => {
@@ -1014,7 +924,7 @@ export default function AdminPage() {
         }}
         title="Novo Usuário"
       >
-        <form onSubmit={handleSaveUser} className="space-y-4">
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Email
@@ -1022,10 +932,12 @@ export default function AdminPage() {
             <input
               type="email"
               value={userForm.email}
-              onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+              onChange={(e) =>
+                setUserForm({ ...userForm, email: e.target.value })
+              }
               placeholder="usuario@exemplo.com"
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
             />
           </div>
 
@@ -1036,11 +948,12 @@ export default function AdminPage() {
             <input
               type="password"
               value={userForm.password}
-              onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+              onChange={(e) =>
+                setUserForm({ ...userForm, password: e.target.value })
+              }
               placeholder="••••••••"
-              minLength={6}
               required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
             />
           </div>
 
@@ -1051,9 +964,11 @@ export default function AdminPage() {
             <input
               type="text"
               value={userForm.name}
-              onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-              placeholder="Nome do usuário"
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+              onChange={(e) =>
+                setUserForm({ ...userForm, name: e.target.value })
+              }
+              placeholder="João Silva"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
             />
           </div>
 
@@ -1063,31 +978,20 @@ export default function AdminPage() {
             </label>
             <select
               value={userForm.role}
-              onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
+              onChange={(e) =>
+                setUserForm({ ...userForm, role: e.target.value })
+              }
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
             >
-              <option value="USER">Usuário (USER)</option>
-              <option value="ADMIN">Administrador (ADMIN)</option>
+              <option value="USER">Usuário</option>
+              <option value="ADMIN">Administrador</option>
             </select>
           </div>
 
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setUserModal(false);
-                setUserForm({ email: "", password: "", name: "", role: "USER" });
-              }}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" className="flex-1">
-              Criar
-            </Button>
-          </div>
-        </form>
+          <Button onClick={handleSaveUser} className="w-full">
+            Criar Usuário
+          </Button>
+        </div>
       </Modal>
 
       {/* Edit User Modal */}
@@ -1100,103 +1004,86 @@ export default function AdminPage() {
         }}
         title="Editar Usuário"
       >
-        {editingUser && (
-          <form onSubmit={handleEditUser} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={userForm.email}
-                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                placeholder="usuario@exemplo.com"
-                required
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={userForm.email}
+              onChange={(e) =>
+                setUserForm({ ...userForm, email: e.target.value })
+              }
+              placeholder="usuario@exemplo.com"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Nova Senha (deixe em branco para manter)
-              </label>
-              <input
-                type="password"
-                value={userForm.password}
-                onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                placeholder="••••••••"
-                minLength={6}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Senha (deixe em branco para manter)
+            </label>
+            <input
+              type="password"
+              value={userForm.password}
+              onChange={(e) =>
+                setUserForm({ ...userForm, password: e.target.value })
+              }
+              placeholder="••••••••"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Nome
-              </label>
-              <input
-                type="text"
-                value={userForm.name}
-                onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                placeholder="Nome do usuário"
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Nome
+            </label>
+            <input
+              type="text"
+              value={userForm.name}
+              onChange={(e) =>
+                setUserForm({ ...userForm, name: e.target.value })
+              }
+              placeholder="João Silva"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white placeholder-gray-500"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Função
-              </label>
-              <select
-                value={userForm.role}
-                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="USER">Usuário (USER)</option>
-                <option value="ADMIN">Administrador (ADMIN)</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Função
+            </label>
+            <select
+              value={userForm.role}
+              onChange={(e) =>
+                setUserForm({ ...userForm, role: e.target.value })
+              }
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
+            >
+              <option value="USER">Usuário</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
 
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setEditUserModal(false);
-                  setEditingUser(null);
-                  setUserForm({ email: "", password: "", name: "", role: "USER" });
-                }}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1">
-                Salvar
-              </Button>
-            </div>
-          </form>
-        )}
+          <Button onClick={handleEditUser} className="w-full">
+            Salvar Alterações
+          </Button>
+        </div>
       </Modal>
 
       {/* Alert Modal */}
       <AlertModal
         isOpen={alertModal}
-        onClose={() => {
-          setAlertModal(false);
-          setAlertLoading(false);
-        }}
-        onConfirm={async () => {
-          if (alertCallback) {
-            setAlertLoading(true);
-            await alertCallback();
-            setAlertLoading(false);
-          }
-          setAlertModal(false);
-        }}
+        onClose={() => setAlertModal(false)}
         type={alertType}
         title={alertTitle}
         message={alertMessage}
-        isLoading={alertLoading}
+        onConfirm={() => {
+          if (alertCallback) alertCallback();
+          setAlertModal(false);
+        }}
+        loading={alertLoading}
       />
     </div>
   );

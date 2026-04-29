@@ -130,7 +130,7 @@ export function Sidebar({ userRole }: SidebarProps) {
                     <item.icon size={20} className="flex-shrink-0" />
                     {!collapsed && <span className="truncate">{item.title}</span>}
                   </Link>
-                  {/* Admin Submenu */}
+                  {/* Admin Submenu - Desktop */}
                   {!collapsed && item.children && isAdminSection && (
                     <ul className="ml-6 mt-2 space-y-1">
                       {item.children.map((child) => {
@@ -139,7 +139,9 @@ export function Sidebar({ userRole }: SidebarProps) {
                           <li key={child.href}>
                             <Link
                               href={child.href}
-                              onClick={() => setMobileOpen(false)}
+                              onClick={() => {
+                                setMobileOpen(false);
+                              }}
                               className={cn(
                                 "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                                 isActive
@@ -160,7 +162,7 @@ export function Sidebar({ userRole }: SidebarProps) {
             </ul>
           </nav>
 
-          {/* Logout - Desktop only */}
+          {/* Logout Button - Desktop only */}
           <div className="border-t border-gray-700 p-4">
             <Link href="/api/auth/logout">
               <Button
@@ -175,16 +177,16 @@ export function Sidebar({ userRole }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Sidebar - Mobile (simplified) */}
+      {/* Sidebar - Mobile (Simplified) */}
       <aside
         className={cn(
           "md:hidden fixed left-0 z-40 bg-secondary text-white transition-all duration-300 w-[280px]",
-          "top-[56px] h-[calc(100vh-56px)]", // Below mobile header
+          "top-[56px] h-[calc(100vh-56px)]",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex h-full flex-col">
-          {/* Navigation - Simplified for mobile */}
+          {/* Navigation - Mobile (no logout, simplified) */}
           <nav className="flex-1 overflow-y-auto p-3 mt-4">
             <ul className="space-y-2">
               {filteredItems.map((item) => (
