@@ -28,13 +28,9 @@ export function Sidebar({ userRole }: SidebarProps) {
   const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState("metrics");
-
-  // Update active tab when search params change
-  React.useEffect(() => {
-    const tab = searchParams?.get("tab") || "metrics";
-    setActiveTab(tab);
-  }, [searchParams]);
+  
+  // Get active tab directly from search params
+  const activeTab = searchParams?.get("tab") || "metrics";
 
   const menuItems = [
     {
