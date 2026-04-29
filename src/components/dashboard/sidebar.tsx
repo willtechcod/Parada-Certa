@@ -84,16 +84,12 @@ export function Sidebar({ userRole }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Desktop */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300",
-          // Desktop: collapsed 60px, expanded 250px
-          collapsed ? "w-[60px] md:w-[60px]" : "w-[280px] md:w-[250px]",
-          // Mobile: hidden by default, show when open
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          "hidden md:flex fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300",
+          collapsed ? "w-[60px]" : "w-[250px]"
         )}
-        style={{ top: "0" }}
       >
         <div className="flex h-full flex-col">
           {/* Logo/Brand */}
@@ -107,7 +103,7 @@ export function Sidebar({ userRole }: SidebarProps) {
               variant="ghost"
               size="icon"
               onClick={() => setCollapsed(!collapsed)}
-              className="text-white hover:bg-gray-700 ml-auto hidden md:flex"
+              className="text-white hover:bg-gray-700 ml-auto"
             >
               <Menu size={20} />
             </Button>
@@ -175,6 +171,79 @@ export function Sidebar({ userRole }: SidebarProps) {
               >
                 <LogOut size={20} className="flex-shrink-0" />
                 {!collapsed && <span className="ml-2 truncate">Sair</span>}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </aside>
+
+      {/* Sidebar - Mobile */}
+      <aside
+        className={cn(
+          "md:hidden fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300 w-[280px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ top: "56px" }} // Below mobile header
+      >
+        <div className="flex h-full flex-col">
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-3 mt-4">
+            <ul className="space-y-2">
+              {filteredItems.map((item) => (
+                <li key={`${item.href}-${item.title}`}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-3 transition-colors",
+                      (pathname === item.href && !item.children) ||
+                      (item.children && isAdminSection)
+                        ? "bg-primary text-secondary font-medium"
+                        : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                    )}
+                  >
+                    <item.icon size={20} className="flex-shrink-0" />
+                    <span className="truncate">{item.title}</span>
+                  </Link>
+                  {/* Admin Submenu */}
+                  {item.children && isAdminSection && (
+                    <ul className="ml-6 mt-2 space-y-1">
+                      {item.children.map((child) => {
+                        const isActive = currentTab === child.tab;
+                        return (
+                          <li key={child.href}>
+                            <Link
+                              href={child.href}
+                              onClick={() => setMobileOpen(false)}
+                              className={cn(
+                                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                                isActive
+                                  ? "bg-primary/20 text-primary font-medium"
+                                  : "text-gray-400 hover:bg-gray-700 hover:text-white"
+                              )}
+                            >
+                              <child.icon size={16} className="flex-shrink-0" />
+                              <span className="truncate">{child.title}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Logout Button */}
+          <div className="border-t border-gray-700 p-4">
+            <Link href="/api/auth/logout">
+              <Button
+                variant="ghost"
+                className="w-full text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors justify-start"
+              >
+                <LogOut size={20} className="flex-shrink-0" />
+                <span className="ml-2 truncate">Sair</span>
               </Button>
             </Link>
           </div>

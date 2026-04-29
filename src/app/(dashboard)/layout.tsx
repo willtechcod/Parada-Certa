@@ -11,15 +11,21 @@ export default async function DashboardLayout({
   const user = await getCurrentUser();
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar userRole={user?.role} />
-      {/* Main content area - adjust margin based on screen size */}
-      <div className="flex-1 w-full min-w-0">
+    <div className="flex min-h-screen bg-background" suppressHydrationWarning>
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block fixed left-0 top-0 h-screen z-40">
+        <Sidebar userRole={user?.role} />
+      </div>
+      
+      {/* Mobile Sidebar */}
+      <div className="md:hidden">
+        <Sidebar userRole={user?.role} />
+      </div>
+      
+      {/* Main content area */}
+      <div className="flex-1 w-full">
         {/* Desktop margin for sidebar */}
-        <div className="hidden md:block md:ml-[60px] lg:ml-[250px] transition-all duration-300" />
-        
-        {/* Actual content wrapper */}
-        <div className="md:hidden"> {/* Mobile: no margin */}</div>
+        <div className="hidden md:block" style={{ marginLeft: "250px" }} />
         
         <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-[1400px] mx-auto w-full">
           <Header userRole={user?.role} userName={user?.name} />
