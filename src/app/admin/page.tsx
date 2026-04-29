@@ -19,6 +19,8 @@ import {
   Trash2,
   UserPlus,
   Download,
+  Percent,
+  Calendar,
 } from "lucide-react";
 import {
   BarChart,
@@ -648,10 +650,6 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Usuários do Sistema</h3>
-            <Button onClick={() => setUserModal(true)}>
-              <UserPlus size={16} className="mr-2" />
-              Novo Usuário
-            </Button>
           </div>
 
           {users.length === 0 ? (
@@ -710,10 +708,18 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          )}
         </div>
       )}
+
+      {/* Add New User Button - Below cards */}
+      <div className="flex justify-center pt-4">
+        <Button onClick={() => setUserModal(true)} className="w-full sm:w-auto">
+          <UserPlus size={16} className="mr-2" />
+          Novo Usuário
+        </Button>
+      </div>
+    </div>
+  )}
 
       {/* Price Modal */}
       <Modal
@@ -841,26 +847,39 @@ export default function AdminPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Desconto (%)
-            </label>
-            <input
-              type="number"
-              value={promoForm.discount}
-              onChange={(e) =>
-                setPromoForm({
-                  ...promoForm,
-                  discount: parseFloat(e.target.value) || 0,
-                })
-              }
-              placeholder="10"
-              min="0"
-              max="100"
-              required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
-            />
-          </div>
+           <div>
+             <label className="block text-sm font-medium text-gray-300 mb-1">
+               Desconto (%)
+             </label>
+             <div className="relative">
+               <input
+                 type="text"
+                 value={promoForm.discount ? `${promoForm.discount}%` : ''}
+                 onChange={(e) => {
+                   const value = e.target.value.replace('%', '');
+                   const num = parseFloat(value) || 0;
+                   if (num >= 0 && num <= 100) {
+                     setPromoForm({
+                       ...promoForm,
+                       discount: num,
+                     });
+                   }
+                 }}
+                 onBlur={(e) => {
+                   const value = e.target.value.replace('%', '');
+                   const num = parseFloat(value) || 0;
+                   if (num > 100) {
+                     setPromoForm({ ...promoForm, discount: 100 });
+                   }
+                 }}
+                 placeholder="10"
+                 maxLength={4}
+                 required
+                 className="w-full px-4 py-2 pl-10 bg-background border border-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+               />
+               <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+             </div>
+           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -879,35 +898,41 @@ export default function AdminPage() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Data Inicial
-            </label>
-            <input
-              type="date"
-              value={promoForm.startDate}
-              onChange={(e) =>
-                setPromoForm({ ...promoForm, startDate: e.target.value })
-              }
-              required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
-            />
-          </div>
+           <div>
+             <label className="block text-sm font-medium text-gray-300 mb-1">
+               Data Inicial
+             </label>
+             <div className="relative">
+               <input
+                 type="date"
+                 value={promoForm.startDate}
+                 onChange={(e) =>
+                   setPromoForm({ ...promoForm, startDate: e.target.value })
+                 }
+                 required
+                 className="w-full px-4 py-2 pl-10 bg-background border border-border rounded-lg text-white [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert-100"
+               />
+               <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70" />
+             </div>
+           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              Data Final
-            </label>
-            <input
-              type="date"
-              value={promoForm.endDate}
-              onChange={(e) =>
-                setPromoForm({ ...promoForm, endDate: e.target.value })
-              }
-              required
-              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-white"
-            />
-          </div>
+           <div>
+             <label className="block text-sm font-medium text-gray-300 mb-1">
+               Data Final
+             </label>
+             <div className="relative">
+               <input
+                 type="date"
+                 value={promoForm.endDate}
+                 onChange={(e) =>
+                   setPromoForm({ ...promoForm, endDate: e.target.value })
+                 }
+                 required
+                 className="w-full px-4 py-2 pl-10 bg-background border border-border rounded-lg text-white [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert-100"
+               />
+               <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70" />
+             </div>
+           </div>
 
           <Button type="submit" className="w-full">
             Criar Promoção

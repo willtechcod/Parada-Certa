@@ -21,12 +21,13 @@ import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   userRole?: string;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
-export function Sidebar({ userRole }: SidebarProps) {
+export function Sidebar({ userRole, collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   
   // Get current tab from URL
@@ -61,6 +62,8 @@ export function Sidebar({ userRole }: SidebarProps) {
 
   const isAdminSection = pathname === "/admin";
 
+  const sidebarWidth = collapsed ? "60px" : "250px";
+
   return (
     <>
       {/* Mobile Header - Fixed at top */}
@@ -87,12 +90,10 @@ export function Sidebar({ userRole }: SidebarProps) {
 
       {/* Sidebar - Desktop */}
       <aside
-        className={cn(
-          "hidden md:flex fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300",
-          collapsed ? "w-[60px]" : "w-[250px]"
-        )}
+        style={{ width: sidebarWidth }}
+        className="hidden md:flex fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300"
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col w-full">
           {/* Logo/Brand */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             {!collapsed && (
@@ -103,7 +104,7 @@ export function Sidebar({ userRole }: SidebarProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={onToggle}
               className="text-white hover:bg-gray-700 ml-auto"
             >
               <Menu size={20} />
@@ -161,19 +162,6 @@ export function Sidebar({ userRole }: SidebarProps) {
               ))}
             </ul>
           </nav>
-
-          {/* Logout Button - Desktop only */}
-          <div className="border-t border-gray-700 p-4">
-            <Link href="/api/auth/logout">
-              <Button
-                variant="ghost"
-                className="w-full text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors justify-start"
-              >
-                <LogOut size={20} className="flex-shrink-0" />
-                {!collapsed && <span className="ml-2 truncate">Sair</span>}
-              </Button>
-            </Link>
-          </div>
         </div>
       </aside>
 

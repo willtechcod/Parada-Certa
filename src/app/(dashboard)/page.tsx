@@ -93,6 +93,16 @@ export default function HomePage() {
     }
   };
 
+  // Calculate estimated revenue
+  const estimatedRevenue = vehicles.reduce((acc, v) => {
+    const billing = calculateBilling({
+      startTime: v.startTime,
+      type: v.type,
+      pricePerMin: v.pricePerMin,
+    });
+    return acc + billing.price;
+  }, 0);
+
   const handleAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -178,18 +188,6 @@ export default function HomePage() {
     setFinishBilling(null);
   };
 
-  const activeVehicles = vehicles.filter((v) => !v.endTime);
-  const totalCars = activeVehicles.filter((v) => v.type === "CARRO").length;
-  const totalMotos = activeVehicles.filter((v) => v.type === "MOTO").length;
-  const estimatedRevenue = activeVehicles.reduce((acc, v) => {
-    const billing = calculateBilling({
-      startTime: v.startTime,
-      type: v.type,
-      pricePerMin: v.pricePerMin,
-    });
-    return acc + billing.price;
-  }, 0);
-
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -199,11 +197,38 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-6">
+      {/* Mobile: Summary Card */}
+      <div className="md:hidden">
+        <div className="bg-background-light border border-border rounded-lg p-4 space-y-3">
+          <h3 className="text-lg font-bold text-white">Resumo</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Veículos Ativos:</span>
+              <span className="text-white font-bold">{vehicles.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Carros:</span>
+              <span className="text-white">{vehicles.filter((v) => v.type === "CARRO").length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Motos:</span>
+              <span className="text-white">{vehicles.filter((v) => v.type === "MOTO").length}</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-border">
+              <span className="text-gray-400">Faturamento:</span>
+              <span className="text-primary font-bold">
+                {formatCurrency(estimatedRevenue)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <StatsCards
         totalVehicles={vehicles.length}
         totalCars={vehicles.filter((v) => v.type === "CARRO").length}
         totalMotos={vehicles.filter((v) => v.type === "MOTO").length}
-        revenue={0}
+        revenue={estimatedRevenue}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
