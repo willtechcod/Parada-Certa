@@ -180,10 +180,11 @@ export function Sidebar({ userRole }: SidebarProps) {
       {/* Sidebar - Mobile */}
       <aside
         className={cn(
-          "md:hidden fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300 w-[280px]",
+          "md:hidden fixed left-0 z-40 bg-secondary text-white transition-all duration-300",
+          // Mobile: full height below header, width 280px
+          "top-[56px] h-[calc(100vh-56px)] w-[280px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
-        style={{ top: "56px" }} // Below mobile header
       >
         <div className="flex h-full flex-col">
           {/* Navigation */}
