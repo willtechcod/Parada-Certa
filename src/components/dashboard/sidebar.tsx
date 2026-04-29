@@ -88,8 +88,9 @@ export function Sidebar({ userRole }: SidebarProps) {
       <aside
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-secondary text-white transition-all duration-300",
-          collapsed ? "w-[60px]" : "w-[280px]",
-          "md:top-0",
+          // Desktop: collapsed 60px, expanded 250px
+          collapsed ? "w-[60px] md:w-[60px]" : "w-[280px] md:w-[250px]",
+          // Mobile: hidden by default, show when open
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
         style={{ top: "0" }}
