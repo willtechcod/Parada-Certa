@@ -11,7 +11,7 @@ export default async function DashboardLayout({
   const user = await getCurrentUser();
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background" suppressHydrationWarning>
       <Sidebar userRole={user?.role} />
       <div className="flex-1 md:ml-[250px] transition-all duration-300 w-full">
         <Header userRole={user?.role} userName={user?.name} />
