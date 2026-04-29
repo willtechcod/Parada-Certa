@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { vehicleSchema } from '@/lib/validations';
+import { z } from 'zod';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ export async function GET() {
 
     return NextResponse.json(vehicles);
   } catch (error) {
+    console.error('GET /api/vehicles error:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -36,7 +38,9 @@ export async function POST(request: NextRequest) {
     const data = vehicleSchema.parse(body);
 
     const prices = await prisma.price.findMany();
-    const priceMap = Object.fromEntries(prices.map((p) => [p.type, p.pricePerMin]));
+    const priceMap: Record<string, number> = Object.fromEntries(
+      prices.map((p) => [p.type, p.pricePerMin])
+    ) as Record<string, number>;
     const pricePerMin = priceMap[data.type] || (data.type === 'CARRO' ? 10/60 : 5/60);
 
     const vehicle = await prisma.vehicle.create({
@@ -58,6 +62,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    console.error('POST /api/vehicles error:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

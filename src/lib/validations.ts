@@ -39,7 +39,9 @@ export const vehicleSchema = z.object({
 
 // Schema para preço
 export const priceSchema = z.object({
-  type: z.enum(["CARRO", "MOTO"]),
+  type: z.enum(["CARRO", "MOTO"], {
+    errorMap: () => ({ message: "Tipo deve ser CARRO ou MOTO" }),
+  }),
   pricePerMin: z.number().min(0.01, "Preço deve ser maior que zero"),
 });
 
@@ -51,6 +53,14 @@ export const promotionSchema = z.object({
   startDate: z.string().min(1, "Data inicial é obrigatória"),
   endDate: z.string().min(1, "Data final é obrigatória"),
   active: z.boolean().default(true),
+}).refine(data => {
+  if (data.startDate && data.endDate) {
+    return new Date(data.endDate) > new Date(data.startDate);
+  }
+  return true;
+}, {
+  message: "Data final deve ser posterior à data inicial",
+  path: ["endDate"]
 });
 
 // Schema para edição de usuário
@@ -61,7 +71,7 @@ export const editUserSchema = z.object({
   role: z.enum(["USER", "ADMIN"]).optional(),
 });
 
-// Types infered from schemas
+// Types inferred from schemas
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type VehicleInput = z.infer<typeof vehicleSchema>;

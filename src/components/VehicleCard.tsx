@@ -1,4 +1,5 @@
 import { Car, Bike, X } from "lucide-react";
+import { calculateBilling, BillingResult } from "@/lib/billing";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -37,39 +38,11 @@ interface VehicleCardProps {
 }
 
 export function VehicleCard({ vehicle, onFinish }: VehicleCardProps) {
-  const now = new Date();
-  const startTime = new Date(vehicle.startTime);
-  
-  if (isNaN(startTime.getTime())) {
-    console.error("Invalid startTime:", vehicle.startTime);
-    return <div className="bg-background-light border border-border rounded-lg p-4">Erro: Data inválida</div>;
-  }
-  
-  const diffMs = now.getTime() - startTime.getTime();
-  const totalMinutes = Math.max(1, Math.ceil(diffMs / 60000));
-  const pricePerMin = vehicle.pricePerMin || (vehicle.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
-  const pricePerHour = pricePerMin * 60;
-
-  let currentPrice: number;
-  let timeDisplay: string;
-
-  if (totalMinutes <= 29) {
-    currentPrice = totalMinutes * pricePerMin;
-    timeDisplay = `${totalMinutes} min`;
-  } else if (totalMinutes === 30) {
-    currentPrice = pricePerHour / 2;
-    timeDisplay = `30 min`;
-  } else if (totalMinutes <= 60) {
-    currentPrice = pricePerHour;
-    timeDisplay = `${totalMinutes} min`;
-  } else {
-    const hours = Math.floor(totalMinutes / 60);
-    const exceededMinutes = totalMinutes % 60;
-    currentPrice = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalMinutes} min`;
-  }
+  const billing: BillingResult = calculateBilling({
+    startTime: vehicle.startTime,
+    type: vehicle.type,
+    pricePerMin: vehicle.pricePerMin,
+  });
 
   return (
     <div className="bg-background-light border border-border rounded-lg p-4 hover:border-primary/50 transition-colors">
@@ -81,13 +54,13 @@ export function VehicleCard({ vehicle, onFinish }: VehicleCardProps) {
           <div>
             <p className="text-lg font-bold text-white">{formatPlateDisplay(vehicle.plate)}</p>
             <p className="text-sm text-gray-400">{vehicle.model}</p>
-            <p className="text-xs text-gray-500 mt-1">{timeDisplay}</p>
+            <p className="text-xs text-gray-500 mt-1">{billing.timeDisplay}</p>
           </div>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-400">Total</p>
           <p className="text-xl font-bold text-primary">
-            {formatCurrency(currentPrice)}
+            {formatCurrency(billing.price)}
           </p>
         </div>
       </div>

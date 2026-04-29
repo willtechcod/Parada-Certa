@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const runtime = 'nodejs';
 
 // Preços por minuto (R$ 10/hora = 0.1667/min, R$ 5/hora = 0.0833/min)
-const PRICES = {
+const PRICES: Record<string, number> = {
   CARRO: 10.0 / 60,
   MOTO: 5.0 / 60,
 };

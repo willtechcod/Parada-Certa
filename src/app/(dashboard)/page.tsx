@@ -9,13 +9,7 @@ import { StatsCards } from "@/components/dashboard/stats-cards";
 import { Car, Bike, Plus } from "lucide-react";
 import { z } from "zod";
 import { vehicleSchema } from "@/lib/validations";
-
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-};
+import { calculateBilling, BillingResult } from "@/lib/billing";
 
 // Format license plate to Brazilian standard: ABC-1234 or ABC-1D23 (Mercosul)
 const formatPlate = (value: string): string => {
@@ -54,11 +48,7 @@ export default function HomePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [finishModal, setFinishModal] = useState(false);
   const [finishingVehicle, setFinishingVehicle] = useState<Vehicle | null>(null);
-  const [finishPrice, setFinishPrice] = useState<{
-    minutes: number;
-    price: number;
-    timeDisplay: string;
-  }>({ minutes: 0, price: 0, timeDisplay: "0 min" });
+  const [finishBilling, setFinishBilling] = useState<BillingResult | null>(null);
   const [form, setForm] = useState({
     plate: "",
     model: "",
@@ -66,50 +56,6 @@ export default function HomePage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  // Function to calculate finish price
-  const calculateFinishPrice = (vehicle: Vehicle) => {
-    const now = new Date();
-    const start = new Date(vehicle.startTime);
-    const diffMs = now.getTime() - start.getTime();
-    const totalMinutes = Math.ceil(diffMs / 60000);
-    const pricePerMin = vehicle.pricePerMin || (vehicle.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
-    const pricePerHour = pricePerMin * 60;
-    
-    if (isNaN(pricePerMin) || pricePerMin === 0) {
-      console.error("Invalid pricePerMin for vehicle:", vehicle);
-      return { minutes: 0, price: 0, timeDisplay: "0 min" };
-    }
-
-    let price: number;
-    let timeDisplay: string;
-    let billableMinutes: number;
-
-    // New logic
-    if (totalMinutes <= 29) {
-      price = totalMinutes * pricePerMin;
-      billableMinutes = totalMinutes;
-      timeDisplay = `${totalMinutes} min`;
-    } else if (totalMinutes === 30) {
-      price = pricePerHour / 2;
-      billableMinutes = 30;
-      timeDisplay = `30 min`;
-    } else if (totalMinutes <= 60) {
-      price = pricePerHour;
-      billableMinutes = 60;
-      timeDisplay = `${totalMinutes} min`;
-    } else {
-      const hours = Math.floor(totalMinutes / 60);
-      const exceededMinutes = totalMinutes % 60;
-      price = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
-      billableMinutes = totalMinutes;
-      const h = Math.floor(totalMinutes / 60);
-      const m = totalMinutes % 60;
-      timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalMinutes} min`;
-    }
-
-    return { minutes: billableMinutes, price, timeDisplay };
-  };
 
   useEffect(() => {
     checkUser();
@@ -139,7 +85,6 @@ export default function HomePage() {
       }
       const data = await res.json();
       const activeVehicles = data.filter((v: Vehicle) => !v.endTime);
-      console.log("Active vehicles:", activeVehicles);
       setVehicles(activeVehicles);
     } catch {
       setError("Erro ao carregar veículos");
@@ -191,9 +136,13 @@ export default function HomePage() {
   };
 
   const handleFinishVehicle = (vehicle: Vehicle) => {
-    const result = calculateFinishPrice(vehicle);
+    const billing = calculateBilling({
+      startTime: vehicle.startTime,
+      type: vehicle.type,
+      pricePerMin: vehicle.pricePerMin,
+    });
     setFinishingVehicle(vehicle);
-    setFinishPrice(result);
+    setFinishBilling(billing);
     setFinishModal(true);
   };
 
@@ -214,6 +163,7 @@ export default function HomePage() {
 
       setFinishModal(false);
       setFinishingVehicle(null);
+      setFinishBilling(null);
       fetchVehicles();
     } catch {
       setError("Erro de conexão");
@@ -225,33 +175,27 @@ export default function HomePage() {
   const cancelFinishVehicle = () => {
     setFinishModal(false);
     setFinishingVehicle(null);
+    setFinishBilling(null);
   };
 
   const activeVehicles = vehicles.filter((v) => !v.endTime);
   const totalCars = activeVehicles.filter((v) => v.type === "CARRO").length;
   const totalMotos = activeVehicles.filter((v) => v.type === "MOTO").length;
   const estimatedRevenue = activeVehicles.reduce((acc, v) => {
-    const start = new Date(v.startTime);
-    const now = new Date();
-    const minutes = Math.ceil((now.getTime() - start.getTime()) / 60000);
-    const pricePerMin = v.pricePerMin || (v.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
-    const pricePerHour = pricePerMin * 60;
-
-    let price: number;
-    if (minutes <= 29) {
-      price = minutes * pricePerMin;
-    } else if (minutes === 30) {
-      price = pricePerHour / 2;
-    } else if (minutes <= 60) {
-      price = pricePerHour;
-    } else {
-      const hours = Math.floor(minutes / 60);
-      const exceededMinutes = minutes % 60;
-      price = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
-    }
-
-    return acc + price;
+    const billing = calculateBilling({
+      startTime: v.startTime,
+      type: v.type,
+      pricePerMin: v.pricePerMin,
+    });
+    return acc + billing.price;
   }, 0);
+
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -293,7 +237,11 @@ export default function HomePage() {
 
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setForm({ plate: "", model: "", type: "CARRO" });
+          setError("");
+        }}
         title="Adicionar Veículo"
       >
         <form onSubmit={handleAddVehicle} className="space-y-4">
@@ -393,13 +341,13 @@ export default function HomePage() {
             <div className="flex justify-between py-2 border-b border-border">
               <span className="text-gray-400">Tempo estacionado</span>
               <span className="text-white font-semibold">
-                {finishPrice.timeDisplay}
+                {finishBilling?.timeDisplay || "0 min"}
               </span>
             </div>
             <div className="flex justify-between py-2">
               <span className="text-gray-400">Valor a pagar</span>
               <span className="text-2xl font-bold text-primary">
-                {formatCurrency(finishPrice.price)}
+                {formatCurrency(finishBilling?.price || 0)}
               </span>
             </div>
           </div>

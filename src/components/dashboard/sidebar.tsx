@@ -29,8 +29,11 @@ export function Sidebar({ userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   
-  // Get active tab directly from search params
-  const activeTab = searchParams?.get("tab") || "metrics";
+  // Get current tab from URL (for admin submenu highlighting)
+  const currentTab = searchParams?.get("tab") || "";
+  
+  // Check if admin section is active
+  const isAdminActive = pathname === "/admin" || pathname.startsWith("/admin?");
 
   const menuItems = [
     {
@@ -114,7 +117,7 @@ export function Sidebar({ userRole }: SidebarProps) {
                       "flex items-center gap-3 rounded-lg px-3 py-3 transition-colors",
                       // Highlight parent items
                       (pathname === item.href && !item.children) ||
-                      (pathname.startsWith("/admin") && item.children)
+                      (item.children && isAdminActive)
                         ? "bg-primary text-secondary font-medium"
                         : "text-gray-300 hover:bg-gray-700 hover:text-white",
                       collapsed && "justify-center px-2"
@@ -124,16 +127,18 @@ export function Sidebar({ userRole }: SidebarProps) {
                     {!collapsed && <span className="truncate">{item.title}</span>}
                   </Link>
                   {/* Admin Submenu */}
-                  {!collapsed && item.children && userRole === "ADMIN" && (
+                  {!collapsed && item.children && isAdminActive && (
                     <ul className="ml-6 mt-2 space-y-1">
                       {item.children.map((child) => (
                         <li key={child.href}>
                           <Link
                             href={child.href}
-                            onClick={() => setMobileOpen(false)}
+                            onClick={() => {
+                              setMobileOpen(false);
+                            }}
                             className={cn(
                               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                              activeTab === child.tab
+                              currentTab === child.tab || (!currentTab && child.tab === "metrics" && pathname === "/admin")
                                 ? "bg-primary/20 text-primary font-medium"
                                 : "text-gray-400 hover:bg-gray-700 hover:text-white"
                             )}
