@@ -9,6 +9,9 @@ const formatCurrency = (value: number) => {
 
 // Format license plate to Brazilian standard
 const formatPlateDisplay = (plate: string): string => {
+  // Safety check for undefined/null
+  if (!plate) return '';
+  
   const cleaned = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
   
   // Old standard: ABC1234 -> ABC-1234
@@ -21,7 +24,7 @@ const formatPlateDisplay = (plate: string): string => {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
   }
   
-  // Return as-is if doesn't match (shouldn't happen)
+  // Return as-is if doesn't match
   return plate;
 };
 

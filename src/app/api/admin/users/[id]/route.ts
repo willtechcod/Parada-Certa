@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { editUserSchema } from '@/lib/validations';
 
 export const runtime = 'nodejs';
+
+// Schema for ID parameter
+const idSchema = z.object({
+  id: z.string().min(1, "ID é obrigatório"),
+});
 
 export async function DELETE(
   request: NextRequest,
@@ -46,8 +53,12 @@ export async function PATCH(
 
   try {
     const { id } = await params;
+    // Validate ID
+    idSchema.parse({ id });
+    
     const body = await request.json();
-    const { name, email, password, role } = body;
+    const data = editUserSchema.parse(body);
+    const { name, email, password, role } = data;
 
     // Verificar se o usuário existe
     const existingUser = await prisma.user.findUnique({

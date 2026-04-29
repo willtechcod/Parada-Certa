@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { promotionSchema } from '@/lib/validations';
 
 export const runtime = 'nodejs';
 
-const promotionSchema = z.object({
-  name: z.string().min(1),
-  discount: z.number().min(0).max(100),
-  vehicleType: z.enum(['CARRO', 'MOTO', 'TODOS']).optional(),
-  startDate: z.string(),
-  endDate: z.string(),
+// Schema for PATCH (toggle active status)
+const togglePromotionSchema = z.object({
+  id: z.string().min(1, "ID é obrigatório"),
+  active: z.boolean(),
 });
 
 export async function GET() {
@@ -66,7 +65,8 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, active } = body;
+    const data = togglePromotionSchema.parse(body);
+    const { id, active } = data;
 
     const promotion = await prisma.promotion.update({
       where: { id },

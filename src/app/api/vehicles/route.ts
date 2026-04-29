@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { vehicleSchema } from '@/lib/validations';
 
 export const runtime = 'nodejs';
-
-const vehicleSchema = z.object({
-  plate: z.string().min(7).max(7),
-  model: z.string().min(1),
-  type: z.enum(['CARRO', 'MOTO']),
-});
 
 export async function GET() {
   try {
@@ -22,15 +16,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    const prices = await prisma.price.findMany();
-    const priceMap = Object.fromEntries(prices.map((p) => [p.type, p.pricePerMin]));
-
-    const vehiclesWithPrice = vehicles.map((v) => ({
-      ...v,
-      pricePerMin: priceMap[v.type] || (v.type === 'CARRO' ? 10/60 : 5/60),
-    }));
-
-    return NextResponse.json(vehiclesWithPrice);
+    return NextResponse.json(vehicles);
   } catch (error) {
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
@@ -49,12 +35,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = vehicleSchema.parse(body);
 
+    const prices = await prisma.price.findMany();
+    const priceMap = Object.fromEntries(prices.map((p) => [p.type, p.pricePerMin]));
+    const pricePerMin = priceMap[data.type] || (data.type === 'CARRO' ? 10/60 : 5/60);
+
     const vehicle = await prisma.vehicle.create({
       data: {
         plate: data.plate.toUpperCase(),
         model: data.model,
         type: data.type,
         startTime: new Date(),
+        pricePerMin: pricePerMin,
       },
     });
 

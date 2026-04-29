@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { z } from 'zod';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +10,11 @@ const PRICES = {
   CARRO: 10.0 / 60,
   MOTO: 5.0 / 60,
 };
+
+// Schema for vehicle ID parameter
+const idSchema = z.object({
+  id: z.string().min(1, "ID é obrigatório"),
+});
 
 export async function DELETE(
   request: NextRequest,
@@ -21,6 +27,8 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    // Validate ID parameter
+    idSchema.parse({ id });
 
     const vehicle = await prisma.vehicle.findUnique({
       where: { id },
@@ -107,6 +115,8 @@ export async function GET(
     }
 
     const { id } = await params;
+    // Validate ID parameter
+    idSchema.parse({ id });
 
     const vehicle = await prisma.vehicle.findUnique({
       where: { id },

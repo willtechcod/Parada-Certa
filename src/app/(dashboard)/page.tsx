@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/Modal";
 import { VehicleCard } from "@/components/VehicleCard";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { Car, Bike, Plus } from "lucide-react";
+import { z } from "zod";
+import { vehicleSchema } from "@/lib/validations";
 
-const formatCurrency = (value: number) => {
+const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -17,20 +19,19 @@ const formatCurrency = (value: number) => {
 
 // Format license plate to Brazilian standard: ABC-1234 or ABC-1D23 (Mercosul)
 const formatPlate = (value: string): string => {
-  // Remove all non-alphanumeric characters
+  if (!value) return '';
   const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
   
-  // Format for old standard: 3 letters + 4 numbers = ABC-1234
+  // Old standard: ABC1234 -> ABC-1234
   if (/^[A-Z]{3}\d{4}$/.test(cleaned)) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
   }
   
-  // Format for Mercosul: 3 letters + 1 number + 1 letter + 2 numbers = ABC-1D23
+  // Mercosul: ABC1D23 -> ABC-1D23
   if (/^[A-Z]{3}\d{1}[A-Z]{1}\d{2}$/.test(cleaned)) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
   }
   
-  // If partial, just return cleaned value
   return cleaned;
 };
 
@@ -41,7 +42,7 @@ interface Vehicle {
   type: "CARRO" | "MOTO";
   startTime: string;
   endTime: string | null;
-  pricePerMin: number;
+  pricePerMin: number | null;
   totalPrice: number | null;
 }
 
@@ -65,6 +66,50 @@ export default function HomePage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Function to calculate finish price
+  const calculateFinishPrice = (vehicle: Vehicle) => {
+    const now = new Date();
+    const start = new Date(vehicle.startTime);
+    const diffMs = now.getTime() - start.getTime();
+    const totalMinutes = Math.ceil(diffMs / 60000);
+    const pricePerMin = vehicle.pricePerMin || (vehicle.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
+    const pricePerHour = pricePerMin * 60;
+    
+    if (isNaN(pricePerMin) || pricePerMin === 0) {
+      console.error("Invalid pricePerMin for vehicle:", vehicle);
+      return { minutes: 0, price: 0, timeDisplay: "0 min" };
+    }
+
+    let price: number;
+    let timeDisplay: string;
+    let billableMinutes: number;
+
+    // New logic
+    if (totalMinutes <= 29) {
+      price = totalMinutes * pricePerMin;
+      billableMinutes = totalMinutes;
+      timeDisplay = `${totalMinutes} min`;
+    } else if (totalMinutes === 30) {
+      price = pricePerHour / 2;
+      billableMinutes = 30;
+      timeDisplay = `30 min`;
+    } else if (totalMinutes <= 60) {
+      price = pricePerHour;
+      billableMinutes = 60;
+      timeDisplay = `${totalMinutes} min`;
+    } else {
+      const hours = Math.floor(totalMinutes / 60);
+      const exceededMinutes = totalMinutes % 60;
+      price = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
+      billableMinutes = totalMinutes;
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalMinutes} min`;
+    }
+
+    return { minutes: billableMinutes, price, timeDisplay };
+  };
 
   useEffect(() => {
     checkUser();
@@ -107,13 +152,18 @@ export default function HomePage() {
     setError("");
 
     try {
-      // Remove hyphen for API (store plate without formatting)
-      const plateForAPI = form.plate.replace("-", "");
+      const validatedData = vehicleSchema.parse({
+        plate: form.plate,
+        model: form.model,
+        type: form.type,
+      });
+
+      const plateForAPI = validatedData.plate.replace("-", "");
       
       const res = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, plate: plateForAPI }),
+        body: JSON.stringify({ ...validatedData, plate: plateForAPI }),
       });
 
       const data = await res.json();
@@ -126,50 +176,22 @@ export default function HomePage() {
       setModalOpen(false);
       setForm({ plate: "", model: "", type: "CARRO" });
       fetchVehicles();
-    } catch {
-      setError("Erro de conexão");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.issues?.[0];
+        setError(firstError?.message || "Dados inválidos");
+      } else {
+        setError("Erro de conexão");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleFinishVehicle = async (vehicle: Vehicle) => {
-    const now = new Date();
-    const start = new Date(vehicle.startTime);
-    const diffMs = now.getTime() - start.getTime();
-    const totalMinutes = Math.ceil(diffMs / 60000);
-    const pricePerMin = vehicle.pricePerMin || (vehicle.type === "CARRO" ? 10.0 / 60 : 5.0 / 60);
-    const pricePerHour = pricePerMin * 60;
-
-    let price: number;
-    let timeDisplay: string;
-    let billableMinutes: number;
-
-    // Nova lógica
-    if (totalMinutes <= 29) {
-      price = totalMinutes * pricePerMin;
-      billableMinutes = totalMinutes;
-      timeDisplay = `${totalMinutes} min`;
-    } else if (totalMinutes === 30) {
-      price = pricePerHour / 2;
-      billableMinutes = 30;
-      timeDisplay = `30 min`;
-    } else if (totalMinutes <= 60) {
-      price = pricePerHour;
-      billableMinutes = 60;
-      timeDisplay = `${totalMinutes} min`;
-    } else {
-      const hours = Math.floor(totalMinutes / 60);
-      const exceededMinutes = totalMinutes % 60;
-      price = (hours * pricePerHour) + (exceededMinutes * pricePerMin);
-      billableMinutes = totalMinutes;
-      const h = Math.floor(totalMinutes / 60);
-      const m = totalMinutes % 60;
-      timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalMinutes} min`;
-    }
-
+  const handleFinishVehicle = (vehicle: Vehicle) => {
+    const result = calculateFinishPrice(vehicle);
     setFinishingVehicle(vehicle);
-    setFinishPrice({ minutes: billableMinutes, price, timeDisplay });
+    setFinishPrice(result);
     setFinishModal(true);
   };
 
@@ -239,7 +261,7 @@ export default function HomePage() {
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-xl md:text-2xl font-bold text-white">Veículos Estacionados</h2>
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white ml-8 md:ml-0">Veículos Estacionados</h2>
         <Button onClick={() => setModalOpen(true)} className="w-full sm:w-auto">
           <Plus size={20} className="mr-2" />
           Adicionar Veículo
@@ -261,11 +283,7 @@ export default function HomePage() {
             <VehicleCard
               key={vehicle.id}
               vehicle={vehicle}
-              onFinish={(vehicle) => {
-                setFinishingVehicle(vehicle);
-                updateFinishPrice(vehicle);
-                setFinishModal(true);
-              }}
+              onFinish={handleFinishVehicle}
             />
           ))}
         </div>
@@ -353,7 +371,7 @@ export default function HomePage() {
         title="Finalizar Estadia"
       >
         <div className="space-y-6">
-          <div className="flex items-center gap-4 p-4 bg-background-light rounded-lg">
+          <div className="flex items-center gap-4 p-4 bg-background rounded-lg">
             <div className="text-primary">
               {finishingVehicle?.type === "CARRO" ? (
                 <Car size={48} />

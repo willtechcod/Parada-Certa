@@ -9,6 +9,8 @@ import { AlertModal } from "@/components/AlertModal";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+import { promotionSchema, editUserSchema } from "@/lib/validations";
 import {
   BarChart3,
   DollarSign,

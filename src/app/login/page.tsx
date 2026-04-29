@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/Input";
+import { z } from "zod";
+import { loginSchema } from "@/lib/validations";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,10 +22,13 @@ export default function LoginPage() {
     setError("");
 
     try {
+      // Validate with Zod schema
+      const validatedData = loginSchema.parse(form);
+      
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(validatedData),
       });
 
       const data = await res.json();
@@ -34,8 +39,13 @@ export default function LoginPage() {
       }
 
       router.push("/");
-    } catch {
-      setError("Erro de conexão");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.issues?.[0];
+        setError(firstError?.message || "Dados inválidos");
+      } else {
+        setError("Erro de conexão");
+      }
     } finally {
       setLoading(false);
     }
