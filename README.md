@@ -365,7 +365,7 @@ npm run lint     # Linter
 
 ---
 
-## Melhorias Implementadas (v2.0)
+## Melhorias Implementadas (v2.1)
 
 ✅ **Nova Lógica de Cobrança:**
   - Até 29 min: proporcional
@@ -396,5 +396,23 @@ npm run lint     # Linter
 ✅ **Formatação BRL:** Auto-formatação de preços para moeda brasileira (R$ 10,00)
   - Impede letras e espaços em campos numéricos
   - Conversão automática (horário → por minuto) ao salvar
+
+✅ **Sidebar Responsiva:**
+  - SidebarWrapper client component para gerenciar estado de colapso
+  - Margem dinâmica no conteúdo principal usando CSS variables
+  - Transição suave ao expandir/colapsar (300ms)
+  - Ícones não sobrepõem o conteúdo principal
+
+✅ **Formulário de Promoções Aprimorado:**
+  - Campo desconto com formatação automática de porcentagem (%)
+  - Ícone DollarSign no campo de desconto
+  - Campos de data com ícone Calendar branco
+  - Validação de intervalo (0-100%) com correção automática
+
+✅ **Correções de Bugs:**
+  - Removido botão "Sair" duplicado no footer da sidebar
+  - Corrigido erro de variável duplicada `estimatedRevenue` no dashboard
+  - Corrigido erro de sintaxe "Unterminated regexp" no admin page
+  - Corrigido import duplicado de ícones (Calendar, Percent)
 
 ✅ **README.md:** Documentação completa da nova estrutura e lógica
