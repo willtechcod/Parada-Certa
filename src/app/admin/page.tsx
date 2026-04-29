@@ -95,7 +95,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [period, setPeriod] = useState("6months");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "metrics");
+  
+  // Get active tab directly from URL - reacts to changes
+  const activeTab = searchParams.get("tab") || "metrics";
   const [priceModal, setPriceModal] = useState(false);
   const [promoModal, setPromoModal] = useState(false);
   const [userModal, setUserModal] = useState(false);
@@ -144,7 +146,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [period, activeTab]);
 
   const fetchData = async () => {
     try {
